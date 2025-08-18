@@ -1,0 +1,201 @@
+# Gemma 3 270M SQL DDL Generator - .gitignore
+
+# ==============================================================================
+# MODEL FILES (Large binary files - should not be committed to git)
+# ==============================================================================
+
+# Converted ONNX model files
+web/models/gemma-3-270m-onnx/
+web/models/**/*.onnx
+web/models/**/*.bin
+web/models/**/*.safetensors
+
+# Original model cache
+setup/.cache/
+setup/models/
+
+# ==============================================================================
+# PYTHON ENVIRONMENT
+# ==============================================================================
+
+# Virtual environment
+setup/venv/
+setup/env/
+setup/.venv/
+
+# Python cache
+setup/__pycache__/
+setup/**/__pycache__/
+setup/*.pyc
+setup/**/*.pyc
+setup/*.pyo
+setup/**/*.pyo
+setup/*.egg-info/
+
+# Pip
+setup/pip-log.txt
+setup/pip-delete-this-directory.txt
+
+# ==============================================================================
+# DEPENDENCIES & PACKAGES
+# ==============================================================================
+
+# Node modules (if any JS dependencies added)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python packages
+*.egg
+*.egg-info
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# ==============================================================================
+# DEVELOPMENT & TEMPORARY FILES
+# ==============================================================================
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+logs/
+*.pid
+*.seed
+*.coverage
+
+# ==============================================================================
+# CLAUDE CODE CONFIGURATION
+# ==============================================================================
+
+# Claude Code configuration
+.claude/
+.playwright-mcp/
+
+# CLAUDE.md project instructions
+CLAUDE.md
+
+# ==============================================================================
+# AUTHENTICATION & SECRETS
+# ==============================================================================
+
+# Hugging Face tokens
+.huggingface/
+setup/.huggingface/
+hf_token.txt
+.env
+.env.local
+.env.*.local
+
+# API keys
+api_keys.txt
+secrets.json
+config_private.json
+
+# ==============================================================================
+# BROWSER & TESTING
+# ==============================================================================
+
+# Browser testing
+.nyc_output
+coverage/
+*.lcov
+
+# Selenium
+geckodriver.log
+chromedriver.log
+
+# ==============================================================================
+# DEPLOYMENT & DISTRIBUTION
+# ==============================================================================
+
+# Compressed archives
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Distribution folders
+dist/
+release/
+deploy/
+
+# ==============================================================================
+# WHAT TO KEEP IN GIT
+# ==============================================================================
+# ✅ Source code (HTML, CSS, JS)
+# ✅ Setup scripts and documentation  
+# ✅ Configuration files (except secrets)
+# ✅ README files
+# ✅ Small test files
+
+# Example of files that SHOULD be tracked:
+# !web/index.html
+# !web/script.js  
+# !web/styles.css
+# !web/gemma-loader.js
+# !setup/convert_gemma.py
+# !setup/requirements.txt
+# !README.md
+
+# ==============================================================================
+# MODEL-SPECIFIC IGNORES
+# ==============================================================================
+
+# Hugging Face cache
+**/transformers_cache/
+**/huggingface_hub/
+**/.cache/huggingface/
+
+# ONNX intermediate files
+**/*.onnx.tmp
+**/onnx_model/
+**/pytorch_model.bin
+**/model.safetensors
+
+# Tokenizer cache
+**/tokenizers_cache/
+
+# ==============================================================================
+# NOTES
+# ==============================================================================
+# This .gitignore is designed to:
+# 1. Keep source code and setup scripts in git
+# 2. Exclude large model files (should be generated locally)
+# 3. Exclude environment-specific files
+# 4. Exclude temporary and cache files
+# 5. Exclude authentication tokens and secrets
+#
+# Users should:
+# 1. Clone the repo
+# 2. Run setup to download and convert models
+# 3. Models will be excluded from commits automatically

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL DDL Dummy Data Generator - Powered by Gemma 3 270M</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h3>Loading Gemma 3 270M Model</h3>
+            <p id="loadingMessage">Checking browser compatibility...</p>
+            <div id="webgpuStatus" class="webgpu-status"></div>
+        </div>
+    </div>
+
+    <div id="compatibilityWarning" class="compatibility-warning" style="display: none;">
+        <h2>⚠️ Browser Compatibility Notice</h2>
+        <p><strong>WebGPU is required</strong> for running Gemma 3 270M in the browser.</p>
+        <p>Your current browser doesn't support WebGPU. Please use one of these browsers:</p>
+        <div class="browser-list">
+            <div class="browser-item">
+                <div class="browser-icon">🌐</div>
+                <div class="browser-name">Chrome 113+</div>
+            </div>
+            <div class="browser-item">
+                <div class="browser-icon">🔷</div>
+                <div class="browser-name">Edge 113+</div>
+            </div>
+            <div class="browser-item">
+                <div class="browser-icon">🦊</div>
+                <div class="browser-name">Firefox Nightly</div>
+                <small>(with flag enabled)</small>
+            </div>
+        </div>
+        <p style="margin-top: 20px; font-size: 0.9em;">
+            Note: This demo showcases Gemma 3 270M running entirely in your browser. 
+            WebGPU is essential for the model's performance.
+        </p>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🚀 SQL DDL Dummy Data Generator</h1>
+            <p>Powered by Gemma 3 270M-IT (270 million parameters) running entirely in your browser</p>
+            <div class="model-status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="modelStatus">Checking WebGPU...</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="section">
+                <h2>📝 SQL DDL Input</h2>
+                <div class="input-group">
+                    <label for="ddlInput">Enter your CREATE TABLE statement:</label>
+                    <textarea id="ddlInput" class="sql-input" placeholder="CREATE TABLE users (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE,
+    age INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);">CREATE TABLE employees (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    email TEXT UNIQUE,
+    department TEXT,
+    salary REAL,
+    hire_date DATE
+);</textarea>
+                </div>
+                
+                <div class="controls">
+                    <button id="validateBtn" class="btn btn-primary">
+                        ✓ Validate DDL
+                    </button>
+                    <input type="number" id="rowCount" class="row-count-input" value="10" min="1" max="100" placeholder="Rows">
+                    <button id="generateBtn" class="btn btn-primary" disabled>
+                        ⚡ Generate with AI
+                    </button>
+                    <button id="stopBtn" class="btn btn-danger" style="display: none;">
+                        ⏹ Stop
+                    </button>
+                </div>
+
+                <div id="validationMessage"></div>
+
+                <div id="schemaDisplay" class="schema-display" style="display: none;">
+                    <h3>Table Schema</h3>
+                    <div id="schemaContent"></div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🤖 AI-Generated Data Preview</h2>
+                
+                <div id="progressContainer" class="progress-container" style="display: none;">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill" style="width: 0%">0%</div>
+                    </div>
+                    <div id="progressText" class="progress-text">Preparing AI model...</div>
+                    <div id="promptDisplay" class="ai-prompt-display" style="display: none;"></div>
+                </div>
+
+                <div id="dataPreview" class="data-preview">
+                    <p style="color: #999; text-align: center; padding: 40px;">
+                        No data generated yet. Validate your DDL and click "Generate with AI" to let Gemma 3 270M create realistic data.
+                    </p>
+                </div>
+
+                <div id="pagination" class="pagination" style="display: none;">
+                    <button id="prevPage" class="btn btn-secondary">← Previous</button>
+                    <span class="page-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+                    <button id="nextPage" class="btn btn-secondary">Next →</button>
+                </div>
+
+                <div class="controls" style="margin-top: 20px;">
+                    <button id="downloadBtn" class="btn btn-primary" disabled>
+                        📥 Download CSV
+                    </button>
+                    <button id="clearBtn" class="btn btn-secondary">
+                        🗑 Clear All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load SQL.js first -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <!-- Load Gemma loader utilities -->
+    <script src="gemma-loader.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
