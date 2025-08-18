@@ -204,38 +204,40 @@ async function generateDataRow(rowIndex) {
         if (col.isPrimaryKey && col.type.includes('INT')) {
             values[col.name] = rowIndex + 1;
         } else {
-            // Try AI generation first, with fallback to realistic mock data
+            // Generate using AI model only - no fallbacks
             try {
-                if (generator) {
+                if (!generator) {
+                    throw new Error('AI model not available');
+                }
                     // Create contextual prompt using previously generated fields
                     let prompt;
                     const columnName = col.name.toLowerCase();
                     
-                    // Build context from already generated fields
-                    const context = Object.keys(values).length > 0 ? 
-                        `Context: ${Object.entries(values).map(([k,v]) => `${k}="${v}"`).join(', ')}. ` : '';
                     
+                    // Ultra-simple prompts - just examples without explanatory text
                     if (columnName.includes('first') && columnName.includes('name')) {
-                        prompt = `Generate a realistic first name:`;
+                        prompt = `Alice`; 
                     } else if (columnName.includes('last') && columnName.includes('name')) {
-                        prompt = `Generate a realistic last name:`;
+                        prompt = `Smith`;
                     } else if (columnName.includes('email')) {
-                        const firstName = values.first_name || values.name || 'user';
-                        const lastName = values.last_name || 'example';
-                        prompt = `Generate an email for ${firstName} ${lastName}. Format: firstname.lastname@company.com`;
+                        prompt = `alice@example.com`;
                     } else if (columnName.includes('salary')) {
-                        const dept = values.department || 'general';
-                        if (dept.toLowerCase().includes('eng') || dept.toLowerCase().includes('tech')) {
-                            prompt = `Generate a tech salary between 80000-200000:`;
-                        } else {
-                            prompt = `Generate a salary between 50000-120000:`;
-                        }
+                        prompt = `75000.50`;
                     } else if (columnName.includes('date')) {
-                        prompt = `Generate a realistic date in YYYY-MM-DD format:`;
+                        prompt = `2023-01-15`;
                     } else if (columnName.includes('department')) {
-                        prompt = `Generate a company department (Engineering, Sales, Marketing, HR, Finance):`;
+                        prompt = `Sales`;
                     } else {
-                        prompt = `${context}Generate a realistic ${col.type} value for "${col.name}":`;
+                        // Generic based on type - no context words
+                        if (type.includes('INT')) {
+                            prompt = `42`;
+                        } else if (type.includes('REAL') || type.includes('FLOAT')) {
+                            prompt = `123.45`;
+                        } else if (type.includes('DATE')) {
+                            prompt = `2023-06-01`;
+                        } else {
+                            prompt = `sample`;
+                        }
                     }
                     
                     if (promptDisplay) {
@@ -249,29 +251,29 @@ async function generateDataRow(rowIndex) {
                     );
                     
                     const generationPromise = generator.generate(prompt, {
-                        max_new_tokens: 30,
-                        temperature: 0.7,
+                        max_new_tokens: 3,
+                        temperature: 0.8,
                         do_sample: true,
-                        top_p: 0.9,
+                        top_p: 0.95,
                     });
                     
                     const output = await Promise.race([generationPromise, timeoutPromise]);
                     
-                    // Extract the generated value
-                    let generatedText = output[0].generated_text;
-                    generatedText = generatedText.replace(prompt, '').trim();
+                    // Extract the generated value from the complete output
+                    let generatedText = output[0].generated_text || '';
+                    console.log('Raw AI output:', generatedText);
+                    
+                    // Use the complete output for tiny models
+                    if (generatedText.length === 0) {
+                        throw new Error('AI returned empty response');
+                    }
                     
                     // Parse based on column type
                     values[col.name] = parseGeneratedValue(generatedText, col.type, col.name);
-                } else {
-                    // Fallback to mock data if no AI model
-                    values[col.name] = generateMockValue(col.type, col.name, rowIndex);
-                }
                 
             } catch (error) {
-                console.warn(`AI generation failed for ${col.name}, using fallback:`, error);
-                // Fallback to realistic mock data
-                values[col.name] = generateMockValue(col.type, col.name, rowIndex);
+                console.warn(`AI generation failed for ${col.name}:`, error);
+                throw error; // Propagate error instead of falling back
             }
         }
     }
@@ -279,131 +281,39 @@ async function generateDataRow(rowIndex) {
     return values;
 }
 
-// Generate realistic mock data as fallback
-function generateMockValue(type, columnName, rowIndex) {
-    type = type.toUpperCase();
-    const name = columnName.toLowerCase();
-    
-    if (type.includes('INT')) {
-        if (name.includes('age')) {
-            return Math.floor(Math.random() * 50) + 20;
-        } else if (name.includes('id') || name.includes('num')) {
-            return rowIndex + 1;
-        } else if (name.includes('salary') || name.includes('wage')) {
-            return Math.floor(Math.random() * 100000) + 30000;
-        }
-        return Math.floor(Math.random() * 1000) + 1;
-        
-    } else if (type.includes('REAL') || type.includes('FLOAT') || type.includes('DOUBLE')) {
-        if (name.includes('salary') || name.includes('wage') || name.includes('price')) {
-            return (Math.random() * 100000 + 30000).toFixed(2);
-        }
-        return (Math.random() * 1000).toFixed(2);
-        
-    } else if (type.includes('DATE')) {
-        if (name.includes('hire') || name.includes('start')) {
-            const year = 2020 + Math.floor(Math.random() * 5);
-            const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-            const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        } else if (name.includes('birth')) {
-            const year = 1970 + Math.floor(Math.random() * 40);
-            const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-            const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-        const year = 2020 + Math.floor(Math.random() * 5);
-        const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-        const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-        
-    } else {
-        // TEXT/VARCHAR - generate realistic names and values
-        if (name.includes('first') || name.includes('fname')) {
-            const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'James', 'Maria', 'Robert', 'Lisa'];
-            return firstNames[Math.floor(Math.random() * firstNames.length)];
-        } else if (name.includes('last') || name.includes('lname') || name.includes('surname')) {
-            const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez'];
-            return lastNames[Math.floor(Math.random() * lastNames.length)];
-        } else if (name.includes('email')) {
-            const domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'company.com'];
-            const firstNames = ['john', 'jane', 'michael', 'sarah', 'david', 'emily', 'james', 'maria'];
-            const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-            const domain = domains[Math.floor(Math.random() * domains.length)];
-            return `${firstName}${rowIndex + 1}@${domain}`;
-        } else if (name.includes('department') || name.includes('dept')) {
-            const departments = ['Engineering', 'Marketing', 'Sales', 'HR', 'Finance', 'Operations', 'Support'];
-            return departments[Math.floor(Math.random() * departments.length)];
-        } else if (name.includes('city')) {
-            const cities = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio'];
-            return cities[Math.floor(Math.random() * cities.length)];
-        } else if (name.includes('state')) {
-            const states = ['CA', 'NY', 'TX', 'FL', 'IL', 'PA', 'OH', 'GA', 'NC', 'MI'];
-            return states[Math.floor(Math.random() * states.length)];
-        } else if (name.includes('phone')) {
-            return `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`;
-        }
-        
-        // Generic text fallback
-        const genericValues = ['Sample Data', 'Test Value', 'Example Text', 'Mock Data', 'Generated Value'];
-        return genericValues[Math.floor(Math.random() * genericValues.length)] + ' ' + (rowIndex + 1);
-    }
-}
 
-// Parse AI-generated value based on column type
+// Parse AI-generated value - take the raw output directly
 function parseGeneratedValue(value, type, columnName) {
     type = type.toUpperCase();
     
-    // Clean up AI response - remove code blocks, explanations, etc.
-    value = value.replace(/```[\s\S]*?```/g, '').trim(); // Remove code blocks
-    value = value.replace(/^["']|["']$/g, '').trim(); // Remove quotes
-    value = value.split('\n')[0].trim(); // Take only first line
-    value = value.replace(/^(Value:|Output:|Result:)/i, '').trim(); // Remove prefixes
+    // Take the first line/word from AI output as-is
+    const firstLine = value.split('\n')[0].trim();
+    const cleanValue = firstLine.split(' ')[0].trim();
     
-    // If value is too long or contains programming terms, it's likely garbage
-    if (value.length > 50 || 
-        value.includes('python') || 
-        value.includes('import') || 
-        value.includes('def ') ||
-        value.includes('print(')) {
-        value = ''; // Will trigger fallback
+    console.log('Using raw AI value:', JSON.stringify(cleanValue));
+    
+    if (!cleanValue || cleanValue.length === 0) {
+        throw new Error('AI generated empty value');
     }
     
+    // For integers and floats, try to parse, but if it fails, throw error
     if (type.includes('INT')) {
-        // Extract numbers from the generated text
-        const matches = value.match(/\d+/);
-        if (matches) {
-            return parseInt(matches[0]);
+        const parsed = parseInt(cleanValue);
+        if (isNaN(parsed)) {
+            throw new Error(`AI did not generate valid integer: "${cleanValue}"`);
         }
-        // If no number found, generate a random one based on column name
-        if (columnName.toLowerCase().includes('age')) {
-            return Math.floor(Math.random() * 50) + 20;
-        }
-        return Math.floor(Math.random() * 1000) + 1;
+        return parsed;
         
     } else if (type.includes('REAL') || type.includes('FLOAT') || type.includes('DOUBLE')) {
-        const matches = value.match(/[\d.]+/);
-        if (matches) {
-            return parseFloat(matches[0]).toFixed(2);
+        const parsed = parseFloat(cleanValue);
+        if (isNaN(parsed)) {
+            throw new Error(`AI did not generate valid float: "${cleanValue}"`);
         }
-        return (Math.random() * 10000).toFixed(2);
-        
-    } else if (type.includes('DATE')) {
-        // Try to parse date from generated text
-        const dateMatch = value.match(/\d{4}-\d{2}-\d{2}/);
-        if (dateMatch) {
-            return dateMatch[0];
-        }
-        // Generate a random date
-        const year = 2020 + Math.floor(Math.random() * 5);
-        const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-        const day = String(Math.floor(Math.random() * 28) + 1).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return parsed;
         
     } else {
-        // TEXT/VARCHAR - clean up the generated text
-        // Remove any control characters and limit length
-        return value.substring(0, 100).replace(/[\x00-\x1F\x7F]/g, '');
+        // For text/dates, return exactly what AI generated
+        return cleanValue;
     }
 }
 
@@ -414,7 +324,7 @@ async function generateData() {
         return;
     }
 
-    const rowCount = parseInt(document.getElementById('rowCount').value);
+    const rowCount = parseInt(document.getElementById('rowCount').value) || 5;
     const progressContainer = document.getElementById('progressContainer');
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
@@ -445,11 +355,11 @@ async function generateData() {
             progressFill.textContent = `${Math.round(progress)}%`;
             progressText.textContent = `AI is generating row ${i + 1} of ${rowCount}...`;
             
-            // Generate row data with retry mechanism
-            let retries = 3;
+            // Generate row data with retry mechanism for AI failures only
+            let retries = 5;
             let rowData = null;
             
-            while (retries > 0) {
+            while (retries > 0 && !rowData) {
                 try {
                     rowData = await generateDataRow(i);
                     
@@ -464,11 +374,16 @@ async function generateData() {
                     
                 } catch (error) {
                     retries--;
+                    console.warn(`AI generation attempt failed (${6-retries}/5) for row ${i + 1}:`, error.message);
+                    progressText.textContent = `Row ${i + 1}: AI retry ${6-retries}/5...`;
+                    
                     if (retries === 0) {
-                        console.error(`Failed to generate/insert row ${i + 1}:`, error);
-                        progressText.textContent = `Error on row ${i + 1}, retrying...`;
+                        console.error(`Failed to generate row ${i + 1} after 5 attempts:`, error);
+                        throw new Error(`AI model failed to generate valid data for row ${i + 1} after 5 attempts`);
                     }
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Brief delay before retry
+                    await new Promise(resolve => setTimeout(resolve, 200));
                 }
             }
             
@@ -531,6 +446,9 @@ function displayData() {
     
     html += '</tbody></table>';
     dataPreview.innerHTML = html;
+    
+    // Initialize column resizing functionality
+    initColumnResizing();
     
     // Update pagination
     document.getElementById('currentPage').textContent = currentPage;
@@ -665,3 +583,81 @@ window.addEventListener('load', async () => {
         document.getElementById('generateBtn').disabled = true;
     }
 });
+
+// Initialize column resizing functionality
+function initColumnResizing() {
+    const table = document.querySelector('.data-table');
+    if (!table) return;
+    
+    const headers = table.querySelectorAll('th');
+    let isResizing = false;
+    let currentColumn = null;
+    let startX = 0;
+    let startWidth = 0;
+    
+    headers.forEach((header, index) => {
+        // Skip the last column to avoid issues
+        if (index === headers.length - 1) return;
+        
+        header.style.position = 'relative';
+        header.style.cursor = 'default';
+        
+        // Mouse down on resize handle
+        header.addEventListener('mousedown', (e) => {
+            const rect = header.getBoundingClientRect();
+            const isOnBorder = e.clientX > rect.right - 8 && e.clientX <= rect.right;
+            
+            if (isOnBorder) {
+                isResizing = true;
+                currentColumn = header;
+                startX = e.clientX;
+                startWidth = header.offsetWidth;
+                
+                document.body.style.cursor = 'col-resize';
+                document.body.classList.add('resizing');
+                
+                e.preventDefault();
+            }
+        });
+        
+        // Change cursor when hovering over resize handle
+        header.addEventListener('mousemove', (e) => {
+            if (isResizing) return;
+            
+            const rect = header.getBoundingClientRect();
+            const isOnBorder = e.clientX > rect.right - 8 && e.clientX <= rect.right;
+            
+            header.style.cursor = isOnBorder ? 'col-resize' : 'default';
+        });
+    });
+    
+    // Global mouse move handler
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing || !currentColumn) return;
+        
+        const diff = e.clientX - startX;
+        const newWidth = Math.max(100, startWidth + diff); // Minimum width of 100px
+        
+        currentColumn.style.width = newWidth + 'px';
+        currentColumn.style.minWidth = newWidth + 'px';
+        
+        // Also set width on corresponding cells in the column
+        const columnIndex = Array.from(currentColumn.parentElement.children).indexOf(currentColumn);
+        const cells = table.querySelectorAll(`td:nth-child(${columnIndex + 1})`);
+        cells.forEach(cell => {
+            cell.style.width = newWidth + 'px';
+            cell.style.minWidth = newWidth + 'px';
+            cell.style.maxWidth = newWidth + 'px';
+        });
+    });
+    
+    // Global mouse up handler
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            currentColumn = null;
+            document.body.style.cursor = 'default';
+            document.body.classList.remove('resizing');
+        }
+    });
+}
