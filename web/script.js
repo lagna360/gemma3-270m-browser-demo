@@ -207,8 +207,36 @@ async function generateDataRow(rowIndex) {
             // Try AI generation first, with fallback to realistic mock data
             try {
                 if (generator) {
-                    // Create a structured prompt for the AI model
-                    const prompt = `Generate a realistic ${col.type} value for database column "${col.name}". Return only the value, no explanation. Value:`;
+                    // Create contextual prompt using previously generated fields
+                    let prompt;
+                    const columnName = col.name.toLowerCase();
+                    
+                    // Build context from already generated fields
+                    const context = Object.keys(values).length > 0 ? 
+                        `Context: ${Object.entries(values).map(([k,v]) => `${k}="${v}"`).join(', ')}. ` : '';
+                    
+                    if (columnName.includes('first') && columnName.includes('name')) {
+                        prompt = `Generate a realistic first name:`;
+                    } else if (columnName.includes('last') && columnName.includes('name')) {
+                        prompt = `Generate a realistic last name:`;
+                    } else if (columnName.includes('email')) {
+                        const firstName = values.first_name || values.name || 'user';
+                        const lastName = values.last_name || 'example';
+                        prompt = `Generate an email for ${firstName} ${lastName}. Format: firstname.lastname@company.com`;
+                    } else if (columnName.includes('salary')) {
+                        const dept = values.department || 'general';
+                        if (dept.toLowerCase().includes('eng') || dept.toLowerCase().includes('tech')) {
+                            prompt = `Generate a tech salary between 80000-200000:`;
+                        } else {
+                            prompt = `Generate a salary between 50000-120000:`;
+                        }
+                    } else if (columnName.includes('date')) {
+                        prompt = `Generate a realistic date in YYYY-MM-DD format:`;
+                    } else if (columnName.includes('department')) {
+                        prompt = `Generate a company department (Engineering, Sales, Marketing, HR, Finance):`;
+                    } else {
+                        prompt = `${context}Generate a realistic ${col.type} value for "${col.name}":`;
+                    }
                     
                     if (promptDisplay) {
                         promptDisplay.style.display = 'block';
@@ -326,8 +354,20 @@ function generateMockValue(type, columnName, rowIndex) {
 function parseGeneratedValue(value, type, columnName) {
     type = type.toUpperCase();
     
-    // Remove quotes if present
-    value = value.replace(/^["']|["']$/g, '').trim();
+    // Clean up AI response - remove code blocks, explanations, etc.
+    value = value.replace(/```[\s\S]*?```/g, '').trim(); // Remove code blocks
+    value = value.replace(/^["']|["']$/g, '').trim(); // Remove quotes
+    value = value.split('\n')[0].trim(); // Take only first line
+    value = value.replace(/^(Value:|Output:|Result:)/i, '').trim(); // Remove prefixes
+    
+    // If value is too long or contains programming terms, it's likely garbage
+    if (value.length > 50 || 
+        value.includes('python') || 
+        value.includes('import') || 
+        value.includes('def ') ||
+        value.includes('print(')) {
+        value = ''; // Will trigger fallback
+    }
     
     if (type.includes('INT')) {
         // Extract numbers from the generated text

@@ -1,225 +1,111 @@
-# Setup Guide - Gemma 3 270M Conversion
+# Setup Guide - Gemma 3 270M Local Conversion (Optional)
 
-This directory contains all the tools needed to download and convert Google's Gemma 3 270M model for browser usage. This is a **one-time setup process** that prepares the model for the web application.
+This directory contains tools to experiment with local model conversion. 
 
-## 📋 Overview
+**⚠️ Important:** The web app now uses direct HuggingFace download and doesn't require local conversion. This setup is **optional** for experimentation only.
 
-The setup process:
-1. **Downloads** google/gemma-3-270m from Hugging Face
-2. **Converts** PyTorch model to ONNX format  
-3. **Optimizes** for WebGPU browser execution
-4. **Saves** converted files to `../web/models/`
+## 📋 What This Does
 
-## 🛠 Files in This Directory
+The conversion process:
+1. **Downloads** Gemma 3 270M model from HuggingFace
+2. **Converts** to ONNX format for browser compatibility
+3. **Saves** converted files to `setup/models/` (not used by web app)
+4. **Creates** experimental files you can test locally
 
-- **`convert_gemma.py`** - Main conversion script
-- **`requirements.txt`** - Python dependencies
-- **`setup.sh`** - Automated environment setup
-- **`check_setup.py`** - Verification script
-- **`venv/`** - Python virtual environment (after setup)
+## 🚀 Quick Setup (Optional)
 
-## 🚀 Quick Setup
-
-### 1. Run Automated Setup
-
+### 1. Automated Setup
 ```bash
-# Make sure you're in the setup/ directory
 cd setup/
-
-# Run the setup script (installs Python dependencies)
 ./setup.sh
 ```
 
-This creates a virtual environment and installs all required packages.
-
-### 2. Authenticate with Hugging Face
-
-```bash
-# Login with your Hugging Face account
-huggingface-cli login
-```
-
-**Important**: You need access to google/gemma-3-270m. If you haven't requested access:
-1. Visit: https://huggingface.co/google/gemma-3-270m  
-2. Click "Request Access"
-3. Wait for approval (usually quick for research use)
-
-### 3. Convert the Model
-
-```bash
-# Run the conversion (takes 5-15 minutes)
-python3 convert_gemma.py
-```
-
-This will:
-- Download Gemma 3 270M (~540MB)
-- Convert to ONNX format
-- Optimize for WebGPU
-- Save to `../web/models/gemma-3-270m-onnx/`
-
-### 4. Verify Setup
-
-```bash
-# Check if everything worked
-python3 check_setup.py
-```
-
-## 📥 Manual Setup (Alternative)
-
-If the automated setup doesn't work:
-
-### Install Dependencies
-
-```bash
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install packages
-pip install --upgrade pip
-pip install transformers "optimum[onnxruntime]" torch huggingface_hub accelerate onnx onnxruntime numpy tokenizers safetensors
-```
-
-### Run Conversion
-
-```bash
-# Activate environment
-source venv/bin/activate
-
-# Convert model
-python3 convert_gemma.py
-```
-
-## 🔍 What Gets Created
-
-After successful conversion, you'll have:
-
-```
-../web/models/gemma-3-270m-onnx/
-├── onnx/
-│   ├── model.onnx          # Main ONNX model (~400MB)
-│   └── model_data.bin      # Model weights  
-├── tokenizer/
-│   ├── tokenizer.json      # Tokenizer configuration
-│   └── vocab.txt           # Vocabulary file
-├── config.json             # Model configuration
-└── manifest.json           # Browser loading manifest
-```
-
-**Total size**: ~540MB
-
-## ⚡ Performance Notes
-
-### Conversion Requirements
-- **RAM**: 4GB+ recommended  
-- **Storage**: 2GB free space (temporary files)
-- **Time**: 5-15 minutes depending on connection
-- **Internet**: Required for initial download
-
-### Browser Performance  
-- **Chrome 113+**: Best performance
-- **Edge 113+**: Good performance  
-- **Firefox Nightly**: Experimental (enable WebGPU flag)
-- **Safari**: Not supported
-
-## 🛠 Troubleshooting
-
-### Permission Denied Error
-```
-Make sure you have access to it at https://huggingface.co/google/gemma-3-270m
-```
-**Solution**: Request access at the Hugging Face model page, then `huggingface-cli login`
-
-### Out of Memory Error
-```
-RuntimeError: CUDA out of memory
-```
-**Solution**: The conversion uses CPU by default. If you see CUDA errors, restart and try again.
-
-### Missing Dependencies
-```
-ImportError: No module named 'optimum'
-```
-**Solution**: 
-```bash
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### Download Interrupted
-If the download gets interrupted, delete the partial files and restart:
-```bash
-rm -rf ../web/models/gemma-3-270m-onnx/
-python3 convert_gemma.py
-```
-
-## 🔄 Re-running Conversion
-
-To convert again (if needed):
-
-```bash
-# Remove existing files
-rm -rf ../web/models/gemma-3-270m-onnx/
-
-# Re-run conversion
-python3 convert_gemma.py
-```
-
-## 📊 Verification Checklist
-
-Run `python3 check_setup.py` to verify:
-
-- ✅ Python dependencies installed
-- ✅ Hugging Face authentication  
-- ✅ Model files created
-- ✅ File sizes correct
-- ✅ Web app ready to run
-
-## 🚀 Next Steps
-
-After successful setup:
-
-1. **Navigate to web directory**:
+### 2. Get HuggingFace Access
+1. Visit https://huggingface.co/settings/tokens
+2. Create a "Read" access token
+3. Visit https://huggingface.co/google/gemma-3-270m and request access
+4. Wait for approval (usually minutes to hours)
+5. Authenticate:
    ```bash
-   cd ../web/
+   hf auth login --token YOUR_TOKEN_HERE
    ```
 
-2. **Start the application**:
+### 3. Convert Model
+```bash
+python3 convert_gemma.py
+```
+
+This creates `setup/models/gemma-3-270m-onnx/` with converted files.
+
+## 🧪 Testing Converted Files (Advanced)
+
+To test your converted model in the web app:
+
+1. **Copy converted files to web directory:**
    ```bash
-   python3 -m http.server 8000
+   cp -r models/gemma-3-270m-onnx ../web/
    ```
 
-3. **Open in browser**:
-   http://localhost:8000
+2. **Modify web/gemma-loader.js:**
+   ```javascript
+   // Change this line:
+   this.modelPath = 'onnx-community/gemma-3-270m-it-ONNX';
+   
+   // To this:
+   this.modelPath = './gemma-3-270m-onnx';
+   
+   // And enable local models:
+   env.allowLocalModels = true;
+   ```
 
-## 🔧 Advanced Configuration
+3. **Test the web app** - it will use your local conversion instead of downloading
 
-### Custom Model Path
-Edit `convert_gemma.py` line 51 to change the output directory:
-```python
-model_dir = Path("../web/models/gemma-3-270m-onnx")
+## 📁 Output Structure
+
+After conversion, you'll have:
+```
+setup/
+└── models/
+    └── gemma-3-270m-onnx/
+        ├── config.json
+        ├── onnx/
+        │   ├── model.onnx
+        │   └── model.onnx_data
+        └── tokenizer/
+            ├── tokenizer.json
+            └── tokenizer_config.json
 ```
 
-### Quantization Options
-The script uses INT8 quantization by default for browser efficiency. To modify:
-```python
-# In convert_gemma.py, modify the ORTModelForCausalLM.from_pretrained call
-# Add quantization parameters as needed
-```
+## 🔧 Files Explained
 
-### WebGPU Optimization
-The ONNX model is optimized for WebGPU by default. Browser performance depends on:
-- GPU hardware capabilities
-- Available VRAM  
-- Browser WebGPU implementation
+- **`convert_gemma.py`** - Downloads and converts Gemma 3 270M
+- **`setup.sh`** - Creates Python environment and installs dependencies  
+- **`check_setup.py`** - Verifies setup completion
+- **`requirements.txt`** - Python package dependencies
 
-## 📞 Support
+## ❓ Why Convert Locally?
 
-If you encounter issues:
+**You don't need to!** The web app works great with HuggingFace download. Local conversion is useful for:
+- **Learning** how the conversion process works
+- **Experimenting** with model modifications
+- **Offline usage** after initial download
+- **Custom model variants**
 
-1. Check the troubleshooting section above
-2. Verify all prerequisites are met
-3. Try the manual setup process
-4. Ensure you have the latest browser versions
+## 🆘 Troubleshooting
 
-The converted model will be used by the web application in `../web/`.
+### Access Denied
+- Request access to https://huggingface.co/google/gemma-3-270m
+- Wait for approval email
+- Run `hf auth login` with a valid token
+
+### Conversion Errors
+- Ensure Python 3.8+ is installed
+- Verify all dependencies: `pip install -r requirements.txt`
+- Check available disk space (~2GB needed)
+
+### ONNX Architecture Issues
+The script uses pre-converted `onnx-community/gemma-3-270m-it-ONNX` to avoid Gemma 3 architecture compatibility issues.
+
+---
+
+**Remember:** This setup is completely optional. The web app works perfectly without any local conversion!

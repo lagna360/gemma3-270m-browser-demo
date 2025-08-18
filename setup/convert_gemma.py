@@ -48,7 +48,7 @@ def check_dependencies():
 
 def setup_directories():
     """Create necessary directories for the converted model."""
-    model_dir = Path("../web/models/gemma-3-270m-onnx")
+    model_dir = Path("./models/gemma-3-270m-onnx")
     model_dir.mkdir(parents=True, exist_ok=True)
     
     # Create subdirectories
@@ -64,24 +64,26 @@ def convert_model_to_onnx(model_dir: Path, use_auth_token: Optional[str] = None)
         from optimum.onnxruntime import ORTModelForCausalLM
         from transformers import AutoTokenizer
         
-        model_name = "google/gemma-3-270m"
-        print(f"🔄 Starting conversion of {model_name}...")
+        # Use pre-converted ONNX model from onnx-community
+        onnx_model_name = "onnx-community/gemma-3-270m-it-ONNX"
+        original_model_name = "google/gemma-3-270m"
+        print(f"🔄 Using pre-converted ONNX model: {onnx_model_name}")
         
-        # Load and convert model
-        print("📥 Downloading and converting model to ONNX...")
+        # Load pre-converted ONNX model
+        print("📥 Downloading pre-converted ONNX model...")
         ort_model = ORTModelForCausalLM.from_pretrained(
-            model_name,
-            export=True,
-            use_auth_token=use_auth_token,
+            onnx_model_name,
+            export=False,  # Don't export, use pre-converted
+            token=use_auth_token,  # Updated parameter name
             provider="CPUExecutionProvider",  # Start with CPU, can optimize for WebGPU later
             use_cache=False,  # Disable KV cache for browser compatibility
         )
         
-        # Load tokenizer
+        # Load tokenizer from original model
         print("📥 Loading tokenizer...")
         tokenizer = AutoTokenizer.from_pretrained(
-            model_name,
-            use_auth_token=use_auth_token
+            original_model_name,
+            token=use_auth_token  # Updated parameter name
         )
         
         # Save to our directory
@@ -96,15 +98,16 @@ def convert_model_to_onnx(model_dir: Path, use_auth_token: Optional[str] = None)
         
         # Create a config file for Transformers.js
         config = {
-            "model_type": "gemma",
+            "model_type": "gemma3_text",
             "task": "text-generation",
             "onnx_file": "model.onnx",
             "tokenizer_file": "tokenizer.json",
-            "architecture": "GemmaForCausalLM",
+            "architecture": "Gemma3TextForCausalLM",
             "max_position_embeddings": 2048,
             "vocab_size": tokenizer.vocab_size,
             "conversion_date": "2024",
             "source": "google/gemma-3-270m",
+            "onnx_source": "onnx-community/gemma-3-270m-it-ONNX",
             "quantized": False
         }
         

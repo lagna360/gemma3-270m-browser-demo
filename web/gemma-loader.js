@@ -11,7 +11,7 @@ class GemmaLoader {
         this.tokenizer = null;
         this.isLoaded = false;
         this.isLoading = false;
-        this.modelPath = './models/gemma-3-270m-onnx/';
+        this.modelPath = 'onnx-community/gemma-3-270m-it-ONNX';
         this.progressCallback = null;
     }
 
@@ -60,20 +60,24 @@ class GemmaLoader {
 
             // Import Transformers.js
             this.updateProgress('Loading Transformers.js...', 20);
-            const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1');
+            const { pipeline, env, TextStreamer } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@latest');
 
-            // Configure Transformers.js for local models
-            env.allowLocalModels = true;
-            env.useBrowserCache = true;
-            env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.0/dist/';
+            // Configure Transformers.js for HuggingFace models
+            env.allowLocalModels = false; // Use HuggingFace directly
+            env.useBrowserCache = true;   // Cache downloaded models  
+            env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@latest/dist/';
 
             this.updateProgress('Configuring ONNX runtime...', 30);
 
-            // Load the local model
-            this.updateProgress('Loading Gemma 3 270M model...', 40);
+            // Download and load Gemma 3 270M from HuggingFace
+            this.updateProgress('Downloading Gemma 3 270M from HuggingFace...', 40);
             
-            try {
-                this.model = await pipeline('text-generation', this.modelPath, {
+            this.model = await pipeline(
+                'text-generation',
+                this.modelPath,
+                { 
+                    dtype: 'fp32',
+                    device: 'webgpu',
                     progress_callback: (progress) => {
                         if (progress.status === 'downloading') {
                             const percent = Math.round((progress.loaded / progress.total) * 100);
@@ -83,19 +87,9 @@ class GemmaLoader {
                         } else if (progress.status === 'ready') {
                             this.updateProgress('Model ready!', 100);
                         }
-                    },
-                    device: 'webgpu', // Use WebGPU for acceleration
-                    dtype: 'fp16',    // Use 16-bit floating point for better performance
-                });
-                
-            } catch (localError) {
-                // Fallback: try to load from a CDN or alternative path
-                console.warn('Local model loading failed, trying alternative...', localError);
-                this.updateProgress('Trying alternative model source...', 50);
-                
-                // You might need to upload the converted model to a CDN or adjust the path
-                throw new Error(`Model loading failed: ${localError.message}`);
-            }
+                    }
+                }
+            );
 
             this.isLoaded = true;
             this.updateProgress('Gemma 3 270M loaded successfully!', 100);
@@ -121,11 +115,7 @@ class GemmaLoader {
 
         const defaultOptions = {
             max_new_tokens: 50,
-            temperature: 0.7,
-            top_p: 0.9,
-            do_sample: true,
-            repetition_penalty: 1.1,
-            pad_token_id: 0,
+            do_sample: false,
         };
 
         const mergedOptions = { ...defaultOptions, ...options };
@@ -134,9 +124,21 @@ class GemmaLoader {
             console.log('🤖 Generating with prompt:', prompt);
             console.log('⚙️ Options:', mergedOptions);
 
-            const result = await this.model(prompt, mergedOptions);
+            // Use the message format as shown in HuggingFace documentation
+            const messages = [
+                { role: "user", content: prompt }
+            ];
+
+            const result = await this.model(messages, mergedOptions);
             
-            console.log('✅ Generation completed');
+            console.log('✅ Generation completed:', result);
+            
+            // Extract the generated text from the response
+            if (result && result[0] && result[0].generated_text) {
+                const generatedText = result[0].generated_text.at(-1).content;
+                return [{ generated_text: generatedText }];
+            }
+            
             return result;
 
         } catch (error) {
