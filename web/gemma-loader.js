@@ -81,11 +81,23 @@ class GemmaLoader {
                     progress_callback: (progress) => {
                         if (progress.status === 'downloading') {
                             const percent = Math.round((progress.loaded / progress.total) * 100);
-                            this.updateProgress(`Downloading model: ${percent}%`, 40 + (percent * 0.5));
+                            // Map download progress from 40% to 85%
+                            const mappedPercent = 40 + (percent * 0.45);
+                            this.updateProgress(`Downloading model: ${percent}%`, mappedPercent);
                         } else if (progress.status === 'loading') {
                             this.updateProgress('Loading model into memory...', 90);
                         } else if (progress.status === 'ready') {
                             this.updateProgress('Model ready!', 100);
+                        } else {
+                            // Handle other statuses
+                            const statusMap = {
+                                'initiate': 35,
+                                'download': 40,
+                                'progress': 50,
+                                'done': 85
+                            };
+                            const mappedPercent = statusMap[progress.status] || 50;
+                            this.updateProgress(`${progress.status}: ${progress.file || ''}`, mappedPercent);
                         }
                     }
                 }

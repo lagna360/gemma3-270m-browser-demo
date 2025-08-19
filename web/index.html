@@ -282,6 +282,23 @@
             51%, 100% { opacity: 0; }
         }
         
+        /* Enhanced shimmer animation for progress bar */
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+        }
+        
+        /* Force hardware acceleration for smooth animations */
+        .matrix-loader, .matrix-loader::before, .matrix-loader::after {
+            transform: translateZ(0);
+            will-change: transform;
+        }
+        
+        .progress-shimmer {
+            will-change: transform;
+            transform: translateZ(0);
+        }
+        
     </style>
 </head>
 
@@ -311,7 +328,8 @@
                 <div class="bg-gradient-to-r from-accent-orange to-accent-orange-light h-3 rounded-full transition-all duration-500 relative"
                      :style="`width: ${Math.max(loadingProgress, simulatedProgress)}%`">
                     <!-- Animated shine effect -->
-                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" 
+                         style="animation: shimmer 2s infinite;"></div>
                 </div>
             </div>
             
@@ -813,6 +831,7 @@
                     this.loadingMessage = 'Initializing Gemma 3 270M loader...';
                     this.loadingStartTime = Date.now();
                     this.startProgressSimulation();
+                    this.startAnimationKeepAlive();
                     
                     try {
                         if (typeof GemmaLoader === 'undefined') {
@@ -821,11 +840,24 @@
                         
                         const gemmaLoader = new GemmaLoader();
                         
-                        await gemmaLoader.loadModel((progress) => {
-                            this.loadingMessage = progress.message;
-                            if (progress.percent) {
-                                this.loadingProgress = progress.percent;
-                            }
+                        // Use setTimeout to prevent blocking during heavy operations
+                        await new Promise((resolve, reject) => {
+                            setTimeout(async () => {
+                                try {
+                                    await gemmaLoader.loadModel((progress) => {
+                                        // Use setTimeout to make progress updates non-blocking
+                                        setTimeout(() => {
+                                            this.loadingMessage = progress.message;
+                                            if (progress.percent) {
+                                                this.loadingProgress = Math.max(this.loadingProgress, progress.percent);
+                                            }
+                                        }, 0);
+                                    });
+                                    resolve();
+                                } catch (error) {
+                                    reject(error);
+                                }
+                            }, 10);
                         });
                         
                         this.generator = {
@@ -856,6 +888,7 @@
                     } finally {
                         this.isLoading = false;
                         this.stopProgressSimulation();
+                        this.stopAnimationKeepAlive();
                     }
                 },
 
@@ -865,28 +898,43 @@
                         clearInterval(this.progressInterval);
                     }
                     
-                    // Simulate gradual progress over ~15 seconds
+                    // Simulate gradual progress over ~15 seconds with better curve
                     this.progressInterval = setInterval(() => {
                         const elapsed = (Date.now() - this.loadingStartTime) / 1000;
                         const expectedDuration = 15; // 15 seconds expected
                         
-                        // Use a curve that starts fast then slows down
-                        const rawProgress = (elapsed / expectedDuration) * 100;
-                        this.simulatedProgress = Math.min(95, rawProgress * (100 - rawProgress * 0.3) / 100);
-                        
-                        // Update time remaining
-                        const remaining = Math.max(0, expectedDuration - elapsed);
-                        if (remaining > 0) {
-                            this.timeRemaining = `~${Math.ceil(remaining)}s remaining`;
+                        // Only simulate progress when real progress is behind
+                        // Use a smoother curve that doesn't freeze
+                        let targetProgress;
+                        if (elapsed < 5) {
+                            // Quick progress to 30% in first 5 seconds
+                            targetProgress = (elapsed / 5) * 30;
+                        } else if (elapsed < 12) {
+                            // Slower progress from 30% to 70% in next 7 seconds
+                            targetProgress = 30 + ((elapsed - 5) / 7) * 40;
                         } else {
-                            this.timeRemaining = 'Almost done...';
+                            // Final push to 95% in last 3 seconds
+                            targetProgress = 70 + ((elapsed - 12) / 3) * 25;
                         }
                         
-                        // Stop at 95% to let real progress take over
-                        if (this.simulatedProgress >= 95) {
+                        // Don't exceed real progress by more than 10%
+                        const maxSimulated = Math.max(this.loadingProgress + 10, targetProgress);
+                        this.simulatedProgress = Math.min(95, maxSimulated);
+                        
+                        // Update time remaining with better estimates
+                        const remaining = Math.max(0, expectedDuration - elapsed);
+                        if (remaining > 5) {
+                            this.timeRemaining = `~${Math.ceil(remaining)}s remaining`;
+                        } else if (remaining > 0) {
+                            this.timeRemaining = 'Almost done...';
+                        } else {
                             this.timeRemaining = 'Finalizing...';
                         }
-                    }, 200); // Update every 200ms for smooth animation
+                        
+                        // Keep animation running even when progress is slow
+                        this.ensureAnimationRunning();
+                        
+                    }, 100); // Update every 100ms for smoother animation
                 },
 
                 stopProgressSimulation() {
@@ -894,8 +942,47 @@
                         clearInterval(this.progressInterval);
                         this.progressInterval = null;
                     }
-                    this.simulatedProgress = 100;
+                    // Smoothly animate to 100%
+                    const finalizeProgress = () => {
+                        if (this.simulatedProgress < 100) {
+                            this.simulatedProgress = Math.min(100, this.simulatedProgress + 2);
+                            setTimeout(finalizeProgress, 50);
+                        }
+                    };
+                    finalizeProgress();
                     this.timeRemaining = 'Complete!';
+                },
+                
+                startAnimationKeepAlive() {
+                    // Use requestAnimationFrame to keep animations running
+                    const keepAlive = () => {
+                        if (this.isLoading) {
+                            // Force a minimal DOM update to keep animations active
+                            const loader = document.querySelector('.matrix-loader');
+                            if (loader) {
+                                loader.style.transform = 'translateZ(0)';
+                            }
+                            requestAnimationFrame(keepAlive);
+                        }
+                    };
+                    requestAnimationFrame(keepAlive);
+                },
+                
+                stopAnimationKeepAlive() {
+                    // Animation keep-alive will stop automatically when isLoading becomes false
+                },
+                
+                ensureAnimationRunning() {
+                    // Legacy function - kept for backwards compatibility
+                    if (!this.isLoading) return;
+                    
+                    // Use requestAnimationFrame for smooth updates
+                    requestAnimationFrame(() => {
+                        const matrixLoader = document.querySelector('.matrix-loader');
+                        if (matrixLoader) {
+                            matrixLoader.style.transform = 'translateZ(0)';
+                        }
+                    });
                 },
 
                 async sendMessage() {
