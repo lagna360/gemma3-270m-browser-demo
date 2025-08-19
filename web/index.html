@@ -1,138 +1,988 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" x-data="app()">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SQL DDL Dummy Data Generator - Powered by Gemma 3 270M</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Gemma 3 270M - Browser AI Chat</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'Monaco', 'Consolas', 'monospace']
+                    },
+                    colors: {
+                        'dark': {
+                            50: '#2A2A2E',
+                            100: '#1C1C1F',
+                            200: '#141416',
+                            300: '#0F0F10',
+                            400: '#0A0A0B',
+                        },
+                        'orange': {
+                            50: '#FFF7F3',
+                            100: '#FFEDD5',
+                            200: '#FFD4AA',
+                            300: '#FFB680',
+                            400: '#FF9558',
+                            500: '#FF6B35',
+                            600: '#E5572A',
+                            700: '#CC4520',
+                            800: '#B23618',
+                            900: '#992911',
+                        },
+                        'accent-orange': '#FF6B35',
+                        'accent-orange-light': '#FF9558',
+                        'accent-orange-dark': '#E5572A',
+                        'text-primary': '#FFFFFF',
+                        'text-secondary': '#B8B8B8',
+                        'text-muted': '#808080',
+                        'surface': '#141416',
+                        'surface-light': '#1C1C1F',
+                        'glass': {
+                            'light': 'rgba(255, 107, 53, 0.05)',
+                            'medium': 'rgba(255, 107, 53, 0.1)',
+                        }
+                    },
+                    backdropBlur: {
+                        'xs': '2px',
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'fade-in': 'fadeIn 0.3s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Icons (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        .glass {
+            background: rgba(255, 107, 53, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 107, 53, 0.15);
+        }
+        
+        .dark-bg {
+            background: #0A0A0B;
+        }
+        
+        .message-bubble {
+            position: relative;
+            word-wrap: break-word;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .message-bubble::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+        }
+        
+        .user-bubble::before {
+            top: 10px;
+            right: -8px;
+            border-left: 8px solid;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+        }
+        
+        .ai-bubble::before {
+            top: 10px;
+            left: -8px;
+            border-right: 8px solid;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+        }
+        
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.4;
+            animation: typingDot 1.4s infinite;
+        }
+        
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typingDot {
+            0%, 60%, 100% { opacity: 0.4; transform: scale(1); }
+            30% { opacity: 1; transform: scale(1.2); }
+        }
+        
+        .scroll-smooth {
+            scroll-behavior: smooth;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 3px;
+        }
+        
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(75, 85, 99, 0.6);
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.6);
+        }
+        
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(75, 85, 99, 0.8);
+        }
+        
+        /* Range slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #FF6B35;
+            height: 6px;
+            border-radius: 3px;
+            cursor: pointer;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-track {
+            background: #FF6B35;
+            height: 6px;
+            border-radius: 3px;
+            border: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #FF9558;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+            border: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(255, 107, 53, 0.3);
+        }
+        
+        /* Firefox range slider */
+        input[type="range"]::-moz-range-track {
+            background: #FF6B35;
+            height: 6px;
+            border-radius: 3px;
+            border: none;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #FF9558;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Textarea auto-resize */
+        .auto-resize {
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+        }
+        
+        /* Matrix-style loader animation */
+        .matrix-loader {
+            display: inline-flex;
+            border: 2px solid rgba(255, 107, 53, 0.3);
+            border-radius: 8px;
+            --c: no-repeat linear-gradient(rgb(255, 107, 53) 0 0) 50%;
+            background:
+                var(--c) calc(50% - 5px)/5px 5px,
+                var(--c) calc(50% + 5px)/5px 5px;
+        }
+        
+        .matrix-loader::before,
+        .matrix-loader::after {
+            content: "12 00 23 40 31 45 60 17 45 32 29 42 50 08 14 07 46 11 03 55";
+            font-size: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: bold;
+            line-height: 1em;
+            height: 1em;
+            width: 2ch;
+            color: transparent;
+            text-shadow: 0 0 0 rgb(255, 107, 53);
+            overflow: hidden;
+            margin: 8px 12px; 
+            animation: matrixRoll 1s steps(20) infinite;
+        }
+        
+        .matrix-loader::before {
+            animation-duration: 1.5s;
+        }
+        
+        @keyframes matrixRoll {
+            100% { text-shadow: 0 -20em 0 rgb(255, 107, 53); }
+        }
+        
+    </style>
 </head>
-<body>
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-content">
-            <div class="spinner"></div>
-            <h3>Loading Gemma 3 270M Model</h3>
-            <p id="loadingMessage">Checking browser compatibility...</p>
-            <div id="webgpuStatus" class="webgpu-status"></div>
+
+<body class="font-sans antialiased transition-colors duration-300 bg-dark-400">
+    <!-- Background -->
+    <div class="fixed inset-0 dark-bg"></div>
+    
+    <!-- Loading Overlay -->
+    <div x-show="isLoading" 
+         x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-surface rounded-2xl p-8 text-center max-w-lg mx-4 border border-orange-500/20 shadow-2xl">
+            <!-- Matrix-style loader -->
+            <div class="matrix-loader mx-auto mb-6"></div>
+            
+            <h3 class="text-xl font-semibold text-text-primary mb-2">Loading Gemma 3 270M</h3>
+            <p x-text="loadingMessage" class="text-text-secondary text-sm mb-4"></p>
+            
+            <!-- Enhanced Progress Bar -->
+            <div class="w-full bg-dark-200 rounded-full h-3 mb-2 overflow-hidden">
+                <div class="bg-gradient-to-r from-accent-orange to-accent-orange-light h-3 rounded-full transition-all duration-500 relative"
+                     :style="`width: ${Math.max(loadingProgress, simulatedProgress)}%`">
+                    <!-- Animated shine effect -->
+                    <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                </div>
+            </div>
+            
+            <!-- Progress percentage and time estimate -->
+            <div class="flex justify-between text-xs text-text-muted">
+                <span x-text="`${Math.max(loadingProgress, simulatedProgress).toFixed(0)}%`"></span>
+                <span x-text="timeRemaining"></span>
+            </div>
+            
+            <!-- Loading steps indicator -->
+            <div class="flex justify-center space-x-2 mt-4">
+                <div class="w-2 h-2 rounded-full transition-colors duration-300"
+                     :class="simulatedProgress >= 20 ? 'bg-accent-orange' : 'bg-dark-200'"></div>
+                <div class="w-2 h-2 rounded-full transition-colors duration-300"
+                     :class="simulatedProgress >= 40 ? 'bg-accent-orange' : 'bg-dark-200'"></div>
+                <div class="w-2 h-2 rounded-full transition-colors duration-300"
+                     :class="simulatedProgress >= 60 ? 'bg-accent-orange' : 'bg-dark-200'"></div>
+                <div class="w-2 h-2 rounded-full transition-colors duration-300"
+                     :class="simulatedProgress >= 80 ? 'bg-accent-orange' : 'bg-dark-200'"></div>
+                <div class="w-2 h-2 rounded-full transition-colors duration-300"
+                     :class="simulatedProgress >= 100 ? 'bg-accent-orange' : 'bg-dark-200'"></div>
+            </div>
         </div>
     </div>
 
-    <div id="compatibilityWarning" class="compatibility-warning" style="display: none;">
-        <h2>⚠️ Browser Compatibility Notice</h2>
-        <p><strong>WebGPU is required</strong> for running Gemma 3 270M in the browser.</p>
-        <p>Your current browser doesn't support WebGPU. Please use one of these browsers:</p>
-        <div class="browser-list">
-            <div class="browser-item">
-                <div class="browser-icon">🌐</div>
-                <div class="browser-name">Chrome 113+</div>
+    <!-- WebGPU Compatibility Warning -->
+    <div x-show="!webGPUSupported && !isLoading" 
+         x-cloak
+         x-transition
+         class="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="bg-surface rounded-2xl p-8 text-center max-w-lg border border-orange-500/20 shadow-2xl">
+            <div class="w-16 h-16 mx-auto mb-4 bg-orange-500/20 rounded-full flex items-center justify-center">
+                <i data-lucide="alert-triangle" class="w-8 h-8 text-accent-orange"></i>
             </div>
-            <div class="browser-item">
-                <div class="browser-icon">🔷</div>
-                <div class="browser-name">Edge 113+</div>
+            <h2 class="text-2xl font-bold text-text-primary mb-4">WebGPU Required</h2>
+            <p class="text-text-secondary mb-6">This demo requires WebGPU support to run Gemma 3 270M in your browser.</p>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div class="bg-surface-light rounded-lg p-4 border border-orange-500/20">
+                    <div class="text-2xl mb-2">🌐</div>
+                    <div class="font-semibold text-text-primary">Chrome 113+</div>
+                </div>
+                <div class="bg-surface-light rounded-lg p-4 border border-orange-500/20">
+                    <div class="text-2xl mb-2">🔷</div>
+                    <div class="font-semibold text-text-primary">Edge 113+</div>
+                </div>
+                <div class="bg-surface-light rounded-lg p-4 border border-orange-500/20">
+                    <div class="text-2xl mb-2">🦊</div>
+                    <div class="font-semibold text-text-primary">Firefox Nightly</div>
+                    <div class="text-xs text-text-muted mt-1">(with flag enabled)</div>
+                </div>
             </div>
-            <div class="browser-item">
-                <div class="browser-icon">🦊</div>
-                <div class="browser-name">Firefox Nightly</div>
-                <small>(with flag enabled)</small>
-            </div>
+            
+            <p class="text-text-muted text-sm">
+                This demo showcases Gemma 3 270M running entirely in your browser using WebGPU acceleration.
+            </p>
         </div>
-        <p style="margin-top: 20px; font-size: 0.9em;">
-            Note: This demo showcases Gemma 3 270M running entirely in your browser. 
-            WebGPU is essential for the model's performance.
-        </p>
     </div>
 
-    <div class="container">
-        <div class="header">
-            <h1>🚀 SQL DDL Dummy Data Generator</h1>
-            <p>Powered by Gemma 3 270M-IT (270 million parameters) running entirely in your browser</p>
-            <div class="model-status">
-                <div class="status-indicator" id="statusIndicator"></div>
-                <span id="modelStatus">Checking WebGPU...</span>
-            </div>
-        </div>
-
-        <div class="main-content">
-            <div class="section">
-                <h2>📝 SQL DDL Input</h2>
-                <div class="input-group">
-                    <label for="ddlInput">Enter your CREATE TABLE statement:</label>
-                    <textarea id="ddlInput" class="sql-input" placeholder="CREATE TABLE users (
-    id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE,
-    age INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);">CREATE TABLE employees (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    email TEXT UNIQUE,
-    department TEXT,
-    salary REAL,
-    hire_date DATE
-);</textarea>
-                </div>
-                
-                <div class="controls">
-                    <button id="validateBtn" class="btn btn-primary">
-                        ✓ Validate DDL
-                    </button>
-                    <input type="number" id="rowCount" class="row-count-input" value="5" min="1" max="100" placeholder="Rows">
-                    <button id="generateBtn" class="btn btn-primary" disabled>
-                        ⚡ Generate with AI
-                    </button>
-                    <button id="stopBtn" class="btn btn-danger" style="display: none;">
-                        ⏹ Stop
-                    </button>
-                </div>
-
-                <div id="validationMessage"></div>
-
-                <div id="schemaDisplay" class="schema-display" style="display: none;">
-                    <h3>Table Schema</h3>
-                    <div id="schemaContent"></div>
-                </div>
-            </div>
-
-            <div class="section">
-                <h2>🤖 AI-Generated Data Preview</h2>
-                
-                <div id="progressContainer" class="progress-container" style="display: none;">
-                    <div class="progress-bar">
-                        <div id="progressFill" class="progress-fill" style="width: 0%">0%</div>
+    <!-- Main Container -->
+    <div class="relative z-10 flex flex-col h-screen">
+        <!-- Navigation Bar -->
+        <nav class="bg-surface border-b border-orange-500/20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <!-- Logo -->
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-accent-orange to-accent-orange-light rounded-xl flex items-center justify-center shadow-lg">
+                            <i data-lucide="brain-circuit" class="w-6 h-6 text-white"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold text-text-primary">Gemma 3 270M</h1>
+                            <p class="text-xs text-text-secondary">Browser AI Chat</p>
+                        </div>
                     </div>
-                    <div id="progressText" class="progress-text">Preparing AI model...</div>
-                    <div id="promptDisplay" class="ai-prompt-display" style="display: none;"></div>
-                </div>
 
-                <div id="dataPreview" class="data-preview">
-                    <p style="color: #999; text-align: center; padding: 40px;">
-                        No data generated yet. Validate your DDL and click "Generate with AI" to let Gemma 3 270M create realistic data.
-                    </p>
-                </div>
+                    <!-- Center Status -->
+                    <div class="hidden sm:flex items-center space-x-3">
+                        <div class="flex items-center space-x-2 bg-surface-light rounded-full px-4 py-2 border border-orange-500/20">
+                            <div class="w-2 h-2 rounded-full"
+                                 :class="modelLoaded ? 'bg-accent-orange animate-pulse-slow' : 'bg-text-muted'"></div>
+                            <span class="text-sm text-text-primary font-medium" x-text="modelStatus"></span>
+                        </div>
+                    </div>
 
-                <div id="pagination" class="pagination" style="display: none;">
-                    <button id="prevPage" class="btn btn-secondary">← Previous</button>
-                    <span class="page-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
-                    <button id="nextPage" class="btn btn-secondary">Next →</button>
-                </div>
-
-                <div class="controls" style="margin-top: 20px;">
-                    <button id="downloadBtn" class="btn btn-primary" disabled>
-                        📥 Download CSV
-                    </button>
-                    <button id="clearBtn" class="btn btn-secondary">
-                        🗑 Clear All
-                    </button>
+                    <!-- Right Actions -->
+                    <div class="flex items-center space-x-3">
+                        <!-- Clear Chat -->
+                        <button @click="clearChat()" 
+                                :disabled="messages.length === 0"
+                                class="bg-surface-light rounded-xl p-2 hover:bg-orange-500/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border border-orange-500/20">
+                            <i data-lucide="trash-2" class="w-5 h-5 text-text-primary"></i>
+                        </button>
+                        
+                        <!-- Settings Toggle -->
+                        <button @click="settingsOpen = !settingsOpen" 
+                                class="bg-surface-light rounded-xl p-2 hover:bg-orange-500/10 transition-colors border border-orange-500/20">
+                            <i data-lucide="settings" class="w-5 h-5 text-text-primary"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- Chat Area -->
+            <main class="flex-1 flex flex-col">
+                <!-- Chat Messages -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar px-4 py-6" id="chatMessages">
+                    <!-- Welcome Message -->
+                    <div x-show="messages.length === 0" class="flex flex-col items-center justify-center h-full text-center">
+                        <div class="bg-surface rounded-2xl p-8 max-w-2xl border border-orange-500/20">
+                            <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-accent-orange to-accent-orange-light rounded-2xl flex items-center justify-center shadow-lg">
+                                <i data-lucide="sparkles" class="w-10 h-10 text-white"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-text-primary mb-4">Welcome to Browser AI Chat</h2>
+                            <p class="text-text-secondary mb-6">Experience Gemma 3 270M running entirely in your browser with WebGPU acceleration. This 270M parameter model is perfect for creative tasks and quick responses.</p>
+                            
+                            <div x-show="!modelLoaded" class="space-y-4">
+                                <button @click="loadModel()" 
+                                        :disabled="isLoading"
+                                        class="bg-gradient-to-r from-accent-orange to-accent-orange-light hover:from-accent-orange-dark hover:to-accent-orange disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg">
+                                    <span x-show="!isLoading" class="flex items-center space-x-2">
+                                        <i data-lucide="rocket" class="w-5 h-5"></i>
+                                        <span>Load AI Model</span>
+                                    </span>
+                                    <span x-show="isLoading" class="flex items-center space-x-2">
+                                        <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Loading...</span>
+                                    </span>
+                                </button>
+                                <p class="text-text-muted text-sm">Takes about 12-15 seconds to download and initialize</p>
+                            </div>
+                            
+                            <div x-show="modelLoaded" class="space-y-4">
+                                <div class="flex items-center justify-center space-x-2 text-accent-orange">
+                                    <i data-lucide="check-circle" class="w-5 h-5"></i>
+                                    <span class="font-medium">Model loaded successfully!</span>
+                                </div>
+                                <p class="text-text-muted text-sm">A creative prompt is ready in the input field below - just click Send or try your own!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Messages -->
+                    <div class="space-y-4 max-w-4xl mx-auto">
+                        <template x-for="(message, index) in messages" :key="index">
+                            <div class="flex" :class="message.isUser ? 'justify-end' : 'justify-start'">
+                                <div class="flex max-w-[80%] space-x-3"
+                                     :class="message.isUser ? 'flex-row-reverse space-x-reverse' : 'flex-row'">
+                                    <!-- Avatar -->
+                                    <div class="flex-shrink-0">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center"
+                                             :class="message.isUser ? 'bg-gradient-to-br from-accent-orange to-accent-orange-light' : 'bg-surface-light border border-orange-500/20'">
+                                            <i :data-lucide="message.isUser ? 'user' : 'brain-circuit'" 
+                                               class="w-4 h-4 text-white"></i>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Message Bubble -->
+                                    <div class="message-bubble"
+                                         :class="message.isUser ? 'user-bubble bg-gradient-to-r from-accent-orange to-accent-orange-light text-white shadow-lg' : 'ai-bubble bg-surface border border-orange-500/20 text-text-primary'">
+                                        <div class="px-4 py-3 rounded-2xl">
+                                            <p class="whitespace-pre-wrap" x-text="message.content"></p>
+                                            <div class="flex items-center justify-between mt-2 text-xs opacity-60">
+                                                <span x-text="formatTime(message.timestamp)"></span>
+                                                <button @click="copyMessage(message.content)" 
+                                                        class="hover:opacity-100 transition-opacity hover:text-accent-orange">
+                                                    <i data-lucide="copy" class="w-3 h-3"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <!-- Typing Indicator -->
+                        <div x-show="isGenerating" class="flex justify-start">
+                            <div class="flex max-w-[80%] space-x-3">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 rounded-full bg-surface-light border border-orange-500/20 flex items-center justify-center">
+                                        <i data-lucide="brain-circuit" class="w-4 h-4 text-white"></i>
+                                    </div>
+                                </div>
+                                <div class="bg-surface border border-orange-500/20 rounded-2xl px-4 py-3">
+                                    <div class="typing-indicator text-accent-orange">
+                                        <div class="typing-dot"></div>
+                                        <div class="typing-dot"></div>
+                                        <div class="typing-dot"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Stats -->
+                <div x-show="lastResponseTime > 0" 
+                     x-transition
+                     class="px-4 py-2">
+                    <div class="bg-surface rounded-xl p-3 max-w-4xl mx-auto border border-orange-500/20">
+                        <div class="flex items-center justify-center space-x-6 text-sm">
+                            <div class="flex items-center space-x-2 text-text-secondary">
+                                <i data-lucide="clock" class="w-4 h-4"></i>
+                                <span x-text="`${lastResponseTime}s`"></span>
+                            </div>
+                            <div class="flex items-center space-x-2 text-text-secondary">
+                                <i data-lucide="zap" class="w-4 h-4"></i>
+                                <span x-text="`${tokensPerSecond} tokens/s`"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="p-4">
+                    <div class="bg-surface rounded-2xl p-4 max-w-4xl mx-auto border border-orange-500/20">
+                        <div class="flex space-x-3">
+                            <div class="flex-1">
+                                <textarea x-model="inputMessage"
+                                         @keydown.enter.prevent="if (!$event.shiftKey) sendMessage()"
+                                         @input="autoResize($event.target)"
+                                         :disabled="!modelLoaded || isGenerating"
+                                         placeholder="Type your message... (Shift+Enter for new line)"
+                                         class="auto-resize w-full bg-transparent text-text-primary placeholder-text-muted border-none outline-none resize-none"></textarea>
+                            </div>
+                            <button @click="setRandomPrompt()" 
+                                    :disabled="!modelLoaded || isGenerating"
+                                    title="Get random creative prompt"
+                                    class="flex-shrink-0 bg-surface-light hover:bg-orange-500/10 disabled:opacity-50 disabled:cursor-not-allowed text-text-primary p-3 rounded-xl transition-all duration-200 border border-orange-500/20">
+                                <i data-lucide="shuffle" class="w-5 h-5"></i>
+                            </button>
+                            <button @click="sendMessage()" 
+                                    :disabled="!modelLoaded || isGenerating || !inputMessage.trim()"
+                                    class="flex-shrink-0 bg-gradient-to-r from-accent-orange to-accent-orange-light hover:from-accent-orange-dark hover:to-accent-orange disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded-xl transition-all duration-200 shadow-lg">
+                                <i :data-lucide="isGenerating ? 'square' : 'send'" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Settings Panel -->
+            <aside x-show="settingsOpen" 
+                   x-transition:enter="transition ease-out duration-300 transform"
+                   x-transition:enter-start="translate-x-full"
+                   x-transition:enter-end="translate-x-0"
+                   x-transition:leave="transition ease-in duration-200 transform"
+                   x-transition:leave-start="translate-x-0"
+                   x-transition:leave-end="translate-x-full"
+                   class="w-80 bg-surface border-l border-orange-500/20 overflow-y-auto custom-scrollbar">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-bold text-text-primary">Model Settings</h2>
+                        <button @click="settingsOpen = false" 
+                                class="bg-surface-light rounded-lg p-2 hover:bg-orange-500/10 transition-colors border border-orange-500/20">
+                            <i data-lucide="x" class="w-4 h-4 text-text-primary"></i>
+                        </button>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- Generation Parameters -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-text-primary mb-4">Generation Parameters</h3>
+                            
+                            <!-- Max Tokens -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-text-secondary mb-2">Max Tokens</label>
+                                <input x-model.number="modelParams.max_new_tokens" 
+                                       type="number" min="1" max="4096"
+                                       class="w-full bg-surface-light border border-orange-500/20 rounded-lg px-3 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent-orange">
+                            </div>
+
+                            <!-- Temperature -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-text-secondary mb-2">
+                                    Temperature: <span class="text-accent-orange" x-text="modelParams.temperature"></span>
+                                </label>
+                                <input x-model.number="modelParams.temperature" 
+                                       type="range" min="0.1" max="2.0" step="0.1"
+                                       class="w-full">
+                            </div>
+
+                            <!-- Top P -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-text-secondary mb-2">
+                                    Top P: <span class="text-accent-orange" x-text="modelParams.top_p"></span>
+                                </label>
+                                <input x-model.number="modelParams.top_p" 
+                                       type="range" min="0.1" max="1.0" step="0.05"
+                                       class="w-full">
+                            </div>
+
+                            <!-- Top K -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-text-secondary mb-2">Top K</label>
+                                <input x-model.number="modelParams.top_k" 
+                                       type="number" min="1" max="100"
+                                       class="w-full bg-surface-light border border-orange-500/20 rounded-lg px-3 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent-orange">
+                            </div>
+
+                            <!-- Repetition Penalty -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-text-secondary mb-2">
+                                    Repetition Penalty: <span class="text-accent-orange" x-text="modelParams.repetition_penalty"></span>
+                                </label>
+                                <input x-model.number="modelParams.repetition_penalty" 
+                                       type="range" min="1.0" max="2.0" step="0.05"
+                                       class="w-full">
+                            </div>
+
+                            <!-- Do Sample -->
+                            <div class="mb-4">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input x-model="modelParams.do_sample" 
+                                           type="checkbox"
+                                           class="w-4 h-4 text-accent-orange bg-surface-light border-orange-500/20 rounded focus:ring-accent-orange">
+                                    <span class="text-sm font-medium text-text-secondary">Enable Sampling</span>
+                                </label>
+                            </div>
+
+                            <!-- Seed -->
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-text-secondary mb-2">Seed</label>
+                                <input x-model.number="modelParams.seed" 
+                                       type="number" min="0" max="999999"
+                                       class="w-full bg-surface-light border border-orange-500/20 rounded-lg px-3 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent-orange">
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="space-y-3">
+                            <button @click="applySettings()" 
+                                    class="w-full bg-gradient-to-r from-accent-orange to-accent-orange-light hover:from-accent-orange-dark hover:to-accent-orange text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 shadow-lg">
+                                Apply Settings
+                            </button>
+                            <button @click="resetSettings()" 
+                                    class="w-full bg-surface-light hover:bg-orange-500/10 text-text-primary font-semibold py-3 px-4 rounded-xl transition-all duration-200 border border-orange-500/20">
+                                Reset to Defaults
+                            </button>
+                        </div>
+
+                        <!-- Current Config Preview -->
+                        <div>
+                            <h4 class="text-sm font-medium text-text-secondary mb-2">Current Configuration</h4>
+                            <pre class="bg-surface-light rounded-lg p-3 text-xs text-text-muted overflow-x-auto border border-orange-500/20" 
+                                 x-text="JSON.stringify(modelParams, null, 2)"></pre>
+                        </div>
+                    </div>
+                </div>
+            </aside>
         </div>
     </div>
 
-    <!-- Load SQL.js first -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
-    <!-- Load Gemma loader utilities -->
+    <!-- Scripts -->
     <script src="gemma-loader.js"></script>
-    <script src="script.js"></script>
+    <script>
+        // Alpine.js main app component
+        function app() {
+            return {
+                // UI State
+                settingsOpen: false,
+                messages: [],
+                inputMessage: '',
+                isLoading: false,
+                isGenerating: false,
+                loadingMessage: 'Checking browser compatibility...',
+                loadingProgress: 0,
+                simulatedProgress: 0,
+                loadingStartTime: null,
+                timeRemaining: '',
+                progressInterval: null,
+                
+                // Model State
+                modelLoaded: false,
+                modelStatus: 'Ready to Load',
+                webGPUSupported: false,
+                generator: null,
+                
+                // Performance Stats
+                lastResponseTime: 0,
+                tokensPerSecond: 0,
+                
+                // Model Parameters
+                modelParams: {
+                    max_new_tokens: 256,
+                    temperature: 0.8,
+                    top_p: 0.95,
+                    top_k: 50,
+                    repetition_penalty: 1.1,
+                    do_sample: true,
+                    seed: 42
+                },
+
+                // Creative prompt templates
+                promptTemplates: [
+                    "Write a short story about an AI that fell in love with a mosquito",
+                    "Write a short story about a time-traveling librarian",
+                    "Write a short story about a dragon who's afraid of fire",
+                    "Write a short story about a ghost who can only haunt WiFi routers",
+                    "Write a short story about a superhero whose power is making perfect toast",
+                    "Write a short story about a witch who runs a tech support hotline",
+                    "Write a short story about an alien who collects Earth's lost socks",
+                    "Write a short story about a robot barista in a coffee shop",
+                    "Write a short story about a vampire who's terrible at being scary",
+                    "Write a short story about a mermaid who wants to be a stand-up comedian",
+                    "Write a short story about a talking houseplant with trust issues",
+                    "Write a short story about a detective who solves crimes using only emojis",
+                    "Write a short story about a pirate ship that sails through clouds",
+                    "Write a short story about a wizard who lost their wand at IKEA",
+                    "Write a short story about a monster under the bed who's actually really nice",
+                    "Write a short story about a cat who secretly runs a multinational corporation",
+                    "Write a short story about a penguin who dreams of being a race car driver",
+                    "Write a short story about a tree that can grant wishes but only on Tuesdays",
+                    "Write a short story about a unicorn who works as a tech startup CEO",
+                    "Write a short story about a shapeshifter who gets stuck as a rubber duck"
+                ],
+
+                async init() {
+                    // Initialize icons
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                    
+                    // Check WebGPU support
+                    await this.checkWebGPU();
+                    
+                    // Load saved settings
+                    this.loadSavedSettings();
+                    
+                    // Set random prompt if no model loaded yet
+                    if (!this.modelLoaded && this.messages.length === 0) {
+                        this.setRandomPrompt();
+                    }
+                    
+                    // Auto-resize textareas
+                    this.$nextTick(() => {
+                        const textareas = document.querySelectorAll('.auto-resize');
+                        textareas.forEach(textarea => this.autoResize(textarea));
+                    });
+                },
+
+
+                async checkWebGPU() {
+                    if ('gpu' in navigator) {
+                        try {
+                            const adapter = await navigator.gpu.requestAdapter();
+                            if (adapter) {
+                                this.webGPUSupported = true;
+                                this.modelStatus = 'WebGPU Ready';
+                                return true;
+                            }
+                        } catch (e) {
+                            console.error('WebGPU check error:', e);
+                        }
+                    }
+                    
+                    this.webGPUSupported = false;
+                    this.modelStatus = 'WebGPU Not Available';
+                    return false;
+                },
+
+                async loadModel() {
+                    if (!this.webGPUSupported || this.isLoading) return;
+                    
+                    this.isLoading = true;
+                    this.loadingProgress = 0;
+                    this.simulatedProgress = 0;
+                    this.loadingMessage = 'Initializing Gemma 3 270M loader...';
+                    this.loadingStartTime = Date.now();
+                    this.startProgressSimulation();
+                    
+                    try {
+                        if (typeof GemmaLoader === 'undefined') {
+                            throw new Error('GemmaLoader not found. Make sure gemma-loader.js is included.');
+                        }
+                        
+                        const gemmaLoader = new GemmaLoader();
+                        
+                        await gemmaLoader.loadModel((progress) => {
+                            this.loadingMessage = progress.message;
+                            if (progress.percent) {
+                                this.loadingProgress = progress.percent;
+                            }
+                        });
+                        
+                        this.generator = {
+                            generate: async (prompt, options = {}) => {
+                                const result = await gemmaLoader.generate(prompt, options);
+                                return result;
+                            },
+                            isLoaded: () => gemmaLoader.isLoaded,
+                            getInfo: () => gemmaLoader.getModelInfo()
+                        };
+                        
+                        this.modelLoaded = true;
+                        this.modelStatus = 'Model Ready';
+                        
+                        // Set random prompt when model loads if input is empty
+                        if (!this.inputMessage.trim()) {
+                            this.setRandomPrompt();
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error loading model:', error);
+                        this.modelStatus = 'Model Load Failed';
+                        alert('Failed to load model: ' + error.message);
+                    } finally {
+                        this.isLoading = false;
+                        this.stopProgressSimulation();
+                    }
+                },
+
+                startProgressSimulation() {
+                    // Clear any existing interval
+                    if (this.progressInterval) {
+                        clearInterval(this.progressInterval);
+                    }
+                    
+                    // Simulate gradual progress over ~15 seconds
+                    this.progressInterval = setInterval(() => {
+                        const elapsed = (Date.now() - this.loadingStartTime) / 1000;
+                        const expectedDuration = 15; // 15 seconds expected
+                        
+                        // Use a curve that starts fast then slows down
+                        const rawProgress = (elapsed / expectedDuration) * 100;
+                        this.simulatedProgress = Math.min(95, rawProgress * (100 - rawProgress * 0.3) / 100);
+                        
+                        // Update time remaining
+                        const remaining = Math.max(0, expectedDuration - elapsed);
+                        if (remaining > 0) {
+                            this.timeRemaining = `~${Math.ceil(remaining)}s remaining`;
+                        } else {
+                            this.timeRemaining = 'Almost done...';
+                        }
+                        
+                        // Stop at 95% to let real progress take over
+                        if (this.simulatedProgress >= 95) {
+                            this.timeRemaining = 'Finalizing...';
+                        }
+                    }, 200); // Update every 200ms for smooth animation
+                },
+
+                stopProgressSimulation() {
+                    if (this.progressInterval) {
+                        clearInterval(this.progressInterval);
+                        this.progressInterval = null;
+                    }
+                    this.simulatedProgress = 100;
+                    this.timeRemaining = 'Complete!';
+                },
+
+                async sendMessage() {
+                    if (!this.generator || this.isGenerating || !this.modelLoaded || !this.inputMessage.trim()) return;
+                    
+                    const message = this.inputMessage.trim();
+                    this.inputMessage = '';
+                    
+                    // Add user message
+                    this.messages.push({
+                        content: message,
+                        isUser: true,
+                        timestamp: new Date()
+                    });
+                    
+                    this.isGenerating = true;
+                    const startTime = Date.now();
+                    
+                    // Scroll to bottom
+                    this.$nextTick(() => this.scrollToBottom());
+                    
+                    try {
+                        const generationParams = { ...this.modelParams };
+                        if (generationParams.seed === -1) {
+                            generationParams.seed = Math.floor(Math.random() * 1000000);
+                        }
+                        
+                        const result = await this.generator.generate(message, generationParams);
+                        
+                        const responseTime = (Date.now() - startTime) / 1000;
+                        const generatedText = result[0].generated_text || '';
+                        
+                        // Add AI response
+                        this.messages.push({
+                            content: generatedText,
+                            isUser: false,
+                            timestamp: new Date()
+                        });
+                        
+                        // Update stats
+                        this.lastResponseTime = responseTime.toFixed(2);
+                        const estimatedTokens = generatedText.split(' ').length;
+                        this.tokensPerSecond = (estimatedTokens / responseTime).toFixed(1);
+                        
+                    } catch (error) {
+                        console.error('Generation error:', error);
+                        this.messages.push({
+                            content: 'Sorry, I encountered an error generating a response. Please try again.',
+                            isUser: false,
+                            timestamp: new Date()
+                        });
+                    } finally {
+                        this.isGenerating = false;
+                        this.$nextTick(() => this.scrollToBottom());
+                    }
+                },
+
+                autoResize(textarea) {
+                    textarea.style.height = 'auto';
+                    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+                },
+
+                scrollToBottom() {
+                    const chatContainer = document.getElementById('chatMessages');
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                },
+
+                formatTime(timestamp) {
+                    return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                },
+
+                copyMessage(content) {
+                    navigator.clipboard.writeText(content).then(() => {
+                        // Could add a toast notification here
+                    });
+                },
+
+                clearChat() {
+                    this.messages = [];
+                    this.lastResponseTime = 0;
+                    this.tokensPerSecond = 0;
+                    // Set new random prompt after clearing
+                    this.setRandomPrompt();
+                },
+
+                setRandomPrompt() {
+                    const randomIndex = Math.floor(Math.random() * this.promptTemplates.length);
+                    this.inputMessage = this.promptTemplates[randomIndex];
+                    // Auto-resize the textarea to fit the new content
+                    this.$nextTick(() => {
+                        const textarea = document.querySelector('.auto-resize');
+                        if (textarea) this.autoResize(textarea);
+                    });
+                },
+
+                loadSavedSettings() {
+                    const saved = localStorage.getItem('gemmaModelParams');
+                    if (saved) {
+                        try {
+                            this.modelParams = { ...this.modelParams, ...JSON.parse(saved) };
+                        } catch (e) {
+                            console.warn('Failed to load saved settings:', e);
+                        }
+                    }
+                },
+
+                applySettings() {
+                    localStorage.setItem('gemmaModelParams', JSON.stringify(this.modelParams));
+                    // Add visual feedback here if needed
+                },
+
+                resetSettings() {
+                    this.modelParams = {
+                        max_new_tokens: 256,
+                        temperature: 0.8,
+                        top_p: 0.95,
+                        top_k: 50,
+                        repetition_penalty: 1.1,
+                        do_sample: true,
+                        seed: 42
+                    };
+                    localStorage.removeItem('gemmaModelParams');
+                }
+            }
+        }
+
+        // Initialize icons after Alpine loads
+        document.addEventListener('alpine:init', () => {
+            if (typeof lucide !== 'undefined') {
+                setTimeout(() => lucide.createIcons(), 100);
+            }
+        });
+    </script>
 </body>
 </html>
