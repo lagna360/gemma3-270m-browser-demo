@@ -147,6 +147,65 @@ class GemmaLoader {
     }
 
     /**
+     * Generate text with streaming support using TextStreamer
+     */
+    async generateStream(prompt, options = {}, onToken = null) {
+        if (!this.isLoaded || !this.model) {
+            throw new Error('Model not loaded. Call loadModel() first.');
+        }
+
+        const defaultOptions = {
+            max_new_tokens: 256,
+            do_sample: true,
+            temperature: 0.8,
+        };
+
+        const mergedOptions = { ...defaultOptions, ...options };
+
+        try {
+            console.log('🤖 Generating with streaming - prompt:', prompt);
+            console.log('⚙️ Streaming options:', mergedOptions);
+
+            // Import TextStreamer from the already imported module
+            const { TextStreamer } = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@latest');
+
+            // Create TextStreamer with callback if provided
+            let streamer = null;
+            if (onToken) {
+                streamer = new TextStreamer(this.model.tokenizer, {
+                    skip_prompt: true,
+                    skip_special_tokens: true,
+                    callback_function: onToken
+                });
+            }
+
+            // Use the message format
+            const messages = [
+                { role: "user", content: prompt }
+            ];
+
+            // Add streamer to options if available
+            const streamOptions = streamer ? { ...mergedOptions, streamer } : mergedOptions;
+
+            const result = await this.model(messages, streamOptions);
+            
+            console.log('✅ Streaming generation completed:', result);
+            
+            // Extract the generated text from the response
+            if (result && result[0] && result[0].generated_text) {
+                const generatedText = result[0].generated_text.at(-1).content;
+                return [{ generated_text: generatedText }];
+            }
+            
+            return result;
+
+        } catch (error) {
+            console.error('Streaming generation error:', error);
+            throw new Error(`Streaming text generation failed: ${error.message}`);
+        }
+    }
+
+    /**
      * Update progress for loading callbacks
      */
     updateProgress(message, percent) {

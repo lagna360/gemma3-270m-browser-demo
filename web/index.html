@@ -269,6 +269,19 @@
             100% { text-shadow: 0 -20em 0 rgb(255, 107, 53); }
         }
         
+        /* Streaming cursor animation */
+        .streaming-cursor {
+            animation: streamingBlink 1s infinite;
+            color: rgb(255, 107, 53);
+            font-weight: bold;
+            margin-left: 1px;
+        }
+        
+        @keyframes streamingBlink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
     </style>
 </head>
 
@@ -463,10 +476,15 @@
                                     <div class="message-bubble"
                                          :class="message.isUser ? 'user-bubble bg-gradient-to-r from-accent-orange to-accent-orange-light text-white shadow-lg' : 'ai-bubble bg-surface border border-orange-500/20 text-text-primary'">
                                         <div class="px-4 py-3 rounded-2xl">
-                                            <p class="whitespace-pre-wrap" x-text="message.content"></p>
+                                            <p class="whitespace-pre-wrap">
+                                                <span x-text="message.content"></span>
+                                                <span x-show="message.isStreaming" class="streaming-cursor">|</span>
+                                            </p>
                                             <div class="flex items-center justify-between mt-2 text-xs opacity-60">
                                                 <span x-text="formatTime(message.timestamp)"></span>
                                                 <button @click="copyMessage(message.content)" 
+                                                        :class="{ 'opacity-50 cursor-not-allowed': message.isStreaming }"
+                                                        :disabled="message.isStreaming"
                                                         class="hover:opacity-100 transition-opacity hover:text-accent-orange">
                                                     <i data-lucide="copy" class="w-3 h-3"></i>
                                                 </button>
@@ -477,8 +495,8 @@
                             </div>
                         </template>
                         
-                        <!-- Typing Indicator -->
-                        <div x-show="isGenerating" class="flex justify-start">
+                        <!-- Typing Indicator (only for non-streaming) -->
+                        <div x-show="isGenerating && !isStreaming" class="flex justify-start">
                             <div class="flex max-w-[80%] space-x-3">
                                 <div class="flex-shrink-0">
                                     <div class="w-8 h-8 rounded-full bg-surface-light border border-orange-500/20 flex items-center justify-center">
@@ -533,8 +551,8 @@
                                     class="flex-shrink-0 bg-surface-light hover:bg-orange-500/10 disabled:opacity-50 disabled:cursor-not-allowed text-text-primary p-3 rounded-xl transition-all duration-200 border border-orange-500/20">
                                 <i data-lucide="shuffle" class="w-5 h-5"></i>
                             </button>
-                            <button @click="sendMessage()" 
-                                    :disabled="!modelLoaded || isGenerating || !inputMessage.trim()"
+                            <button @click="isGenerating ? stopGeneration() : sendMessage()" 
+                                    :disabled="!modelLoaded || (!isGenerating && !inputMessage.trim())"
                                     class="flex-shrink-0 bg-gradient-to-r from-accent-orange to-accent-orange-light hover:from-accent-orange-dark hover:to-accent-orange disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded-xl transition-all duration-200 shadow-lg">
                                 <i :data-lucide="isGenerating ? 'square' : 'send'" class="w-5 h-5"></i>
                             </button>
@@ -631,6 +649,22 @@
                             </div>
                         </div>
 
+                        <!-- Streaming Settings -->
+                        <div class="border-t border-orange-500/20 pt-6">
+                            <h3 class="text-lg font-semibold text-text-primary mb-4">Streaming Settings</h3>
+                            
+                            <!-- Enable Streaming -->
+                            <div class="mb-4">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input x-model="isStreamingEnabled" 
+                                           type="checkbox"
+                                           class="w-4 h-4 text-accent-orange bg-surface-light border-orange-500/20 rounded focus:ring-accent-orange">
+                                    <span class="text-sm font-medium text-text-secondary">Enable Streaming Responses</span>
+                                </label>
+                                <p class="text-xs text-text-muted mt-1">Show text as it's generated instead of waiting for complete response</p>
+                            </div>
+                        </div>
+
                         <!-- Action Buttons -->
                         <div class="space-y-3">
                             <button @click="applySettings()" 
@@ -683,6 +717,13 @@
                 // Performance Stats
                 lastResponseTime: 0,
                 tokensPerSecond: 0,
+                
+                // Streaming State
+                isStreamingEnabled: true,
+                streamingMessage: '',
+                streamingIndex: null,
+                isStreaming: false,
+                shouldStopGeneration: false,
                 
                 // Model Parameters
                 modelParams: {
@@ -792,6 +833,10 @@
                                 const result = await gemmaLoader.generate(prompt, options);
                                 return result;
                             },
+                            generateStream: async (prompt, options = {}, onToken = null) => {
+                                const result = await gemmaLoader.generateStream(prompt, options, onToken);
+                                return result;
+                            },
                             isLoaded: () => gemmaLoader.isLoaded,
                             getInfo: () => gemmaLoader.getModelInfo()
                         };
@@ -867,6 +912,8 @@
                     });
                     
                     this.isGenerating = true;
+                    this.isStreaming = this.isStreamingEnabled;
+                    this.shouldStopGeneration = false;
                     const startTime = Date.now();
                     
                     // Scroll to bottom
@@ -878,22 +925,13 @@
                             generationParams.seed = Math.floor(Math.random() * 1000000);
                         }
                         
-                        const result = await this.generator.generate(message, generationParams);
-                        
-                        const responseTime = (Date.now() - startTime) / 1000;
-                        const generatedText = result[0].generated_text || '';
-                        
-                        // Add AI response
-                        this.messages.push({
-                            content: generatedText,
-                            isUser: false,
-                            timestamp: new Date()
-                        });
-                        
-                        // Update stats
-                        this.lastResponseTime = responseTime.toFixed(2);
-                        const estimatedTokens = generatedText.split(' ').length;
-                        this.tokensPerSecond = (estimatedTokens / responseTime).toFixed(1);
+                        if (this.isStreamingEnabled && this.generator.generateStream) {
+                            // Streaming mode
+                            await this.generateWithStreaming(message, generationParams, startTime);
+                        } else {
+                            // Non-streaming mode (fallback)
+                            await this.generateWithoutStreaming(message, generationParams, startTime);
+                        }
                         
                     } catch (error) {
                         console.error('Generation error:', error);
@@ -904,8 +942,69 @@
                         });
                     } finally {
                         this.isGenerating = false;
+                        this.isStreaming = false;
+                        this.streamingMessage = '';
+                        this.streamingIndex = null;
                         this.$nextTick(() => this.scrollToBottom());
                     }
+                },
+
+                async generateWithStreaming(message, generationParams, startTime) {
+                    // Create placeholder message for AI response
+                    this.messages.push({
+                        content: '',
+                        isUser: false,
+                        timestamp: new Date(),
+                        isStreaming: true
+                    });
+                    
+                    this.streamingIndex = this.messages.length - 1;
+                    this.streamingMessage = '';
+                    
+                    // Token callback for streaming
+                    const onToken = (token) => {
+                        this.streamingMessage += token;
+                        this.messages[this.streamingIndex].content = this.streamingMessage;
+                        
+                        // Auto-scroll to bottom (debounced)
+                        clearTimeout(this.scrollTimeout);
+                        this.scrollTimeout = setTimeout(() => {
+                            this.$nextTick(() => this.scrollToBottom());
+                        }, 50);
+                    };
+                    
+                    const result = await this.generator.generateStream(message, generationParams, onToken);
+                    
+                    // Finalize the message
+                    const responseTime = (Date.now() - startTime) / 1000;
+                    const finalText = this.streamingMessage;
+                    
+                    this.messages[this.streamingIndex].content = finalText;
+                    this.messages[this.streamingIndex].isStreaming = false;
+                    
+                    // Update stats
+                    this.lastResponseTime = responseTime.toFixed(2);
+                    const estimatedTokens = finalText.split(' ').length;
+                    this.tokensPerSecond = (estimatedTokens / responseTime).toFixed(1);
+                },
+
+                async generateWithoutStreaming(message, generationParams, startTime) {
+                    const result = await this.generator.generate(message, generationParams);
+                    
+                    const responseTime = (Date.now() - startTime) / 1000;
+                    const generatedText = result[0].generated_text || '';
+                    
+                    // Add AI response
+                    this.messages.push({
+                        content: generatedText,
+                        isUser: false,
+                        timestamp: new Date()
+                    });
+                    
+                    // Update stats
+                    this.lastResponseTime = responseTime.toFixed(2);
+                    const estimatedTokens = generatedText.split(' ').length;
+                    this.tokensPerSecond = (estimatedTokens / responseTime).toFixed(1);
                 },
 
                 autoResize(textarea) {
@@ -926,6 +1025,24 @@
                     navigator.clipboard.writeText(content).then(() => {
                         // Could add a toast notification here
                     });
+                },
+
+                stopGeneration() {
+                    this.shouldStopGeneration = true;
+                    
+                    // If we're streaming, finalize the current message
+                    if (this.isStreaming && this.streamingIndex !== null) {
+                        this.messages[this.streamingIndex].isStreaming = false;
+                        this.messages[this.streamingIndex].content += ' [Stopped]';
+                    }
+                    
+                    // Reset states
+                    this.isGenerating = false;
+                    this.isStreaming = false;
+                    this.streamingMessage = '';
+                    this.streamingIndex = null;
+                    
+                    console.log('Generation stopped by user');
                 },
 
                 clearChat() {
